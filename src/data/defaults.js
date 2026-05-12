@@ -52,7 +52,7 @@ export const SHORTCUTS = {
   so:  { label:'StackOverflow', url:'https://stackoverflow.com/search?q=' },
   dev: { label:'Dev.to',      url:'https://dev.to/search?q=' },
 
-  ig: { label:'Instagram', url:'https://www.instagram.com/explore/search/keyword/?q=' },
+  ig: { label:'Instagram', url: 'https://www.instagram.com/'},
   li:  { label:'LinkedIn',    url:'https://www.linkedin.com/search/results/all/?keywords=' },
   tw:  { label:'Twitter/X',   url:'https://x.com/search?q=' },
   rd:  { label:'Reddit',      url:'https://www.reddit.com/search/?q=' },
