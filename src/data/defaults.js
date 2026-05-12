@@ -80,7 +80,7 @@ export const ACCENTS = [
 ]
 
 export const TIMER_MODES = {
-  focus: { label:'Focus',       mins:25 },
+  focus: { label:'Focus',       mins:45 },
   short: { label:'Short Break', mins:5  },
   long:  { label:'Long Break',  mins:15 }
 }
