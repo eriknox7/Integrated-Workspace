@@ -5,17 +5,17 @@ import { fmtTimer } from '../utils/time'
 import { TIMER_MODES } from '../data/defaults'
 
 const MODE_META = {
-  focus: { color: 'var(--accent)', glow: 'rgba(91,106,248,0.25)',  bg: 'rgba(91,106,248,0.06)'  },
-  short: { color: 'var(--green)',  glow: 'rgba(52,196,139,0.25)',  bg: 'rgba(52,196,139,0.06)'  },
-  long:  { color: 'var(--amber)', glow: 'rgba(232,160,69,0.25)',   bg: 'rgba(232,160,69,0.06)'  },
+  focus: { color: 'var(--accent)', glow: 'rgba(91,106,248,0.25)', bg: 'rgba(91,106,248,0.06)' },
+  short: { color: 'var(--green)', glow: 'rgba(52,196,139,0.25)', bg: 'rgba(52,196,139,0.06)' },
+  long: { color: 'var(--amber)', glow: 'rgba(232,160,69,0.25)', bg: 'rgba(232,160,69,0.06)' },
 }
 
-const EMOJI_OPTIONS = ['💡','📖','⏱','🏋️','🧘','💻','✍️','📐','🎯','🌱','📚','🔬','🎨','🏃','💪']
+const EMOJI_OPTIONS = ['💡', '📖', '⏱', '🏋️', '🧘', '💻', '✍️', '📐', '🎯', '🌱', '📚', '🔬', '🎨', '🏃', '💪']
 const COLOR_OPTIONS = [
   { color: 'var(--accent)', dim: 'var(--accent-dim)', border: 'var(--accent-b)' },
-  { color: 'var(--green)',  dim: 'var(--green-dim)',  border: 'rgba(52,196,139,0.22)' },
-  { color: 'var(--amber)',  dim: 'var(--amber-dim)',  border: 'rgba(232,160,69,0.22)' },
-  { color: 'var(--red)',    dim: 'var(--red-dim)',    border: 'rgba(224,92,92,0.22)' },
+  { color: 'var(--green)', dim: 'var(--green-dim)', border: 'rgba(52,196,139,0.22)' },
+  { color: 'var(--amber)', dim: 'var(--amber-dim)', border: 'rgba(232,160,69,0.22)' },
+  { color: 'var(--red)', dim: 'var(--red-dim)', border: 'rgba(224,92,92,0.22)' },
 ]
 
 // Migrate old object-based streaks to array format
@@ -32,7 +32,7 @@ function normalizeStreaks(raw) {
 }
 
 export default function Focus({ streaks: rawStreaks, setStreaks: setRawStreaks, focusMins, onFocusMinute }) {
-  const checkins    = normalizeStreaks(rawStreaks)
+  const checkins = normalizeStreaks(rawStreaks)
   function setCheckins(updater) {
     setRawStreaks(prev => {
       const cur = normalizeStreaks(prev)
@@ -40,49 +40,108 @@ export default function Focus({ streaks: rawStreaks, setStreaks: setRawStreaks, 
     })
   }
 
-  const [mode,     setMode]     = useState('focus')
-  const [secs,     setSecs]     = useState(TIMER_MODES.focus.mins * 60)
-  const [running,  setRunning]  = useState(false)
-  const [sessions, setSessions] = useState(0)
-  const [history,  setHistory]  = useState([])
+  // --- Timer state persisted via localStorage + start-timestamp trick ---
+  function loadTimerState() {
+    try {
+      const raw = localStorage.getItem('focus_timer')
+      if (!raw) return null
+      return JSON.parse(raw)
+    } catch { return null }
+  }
+
+  function computeInitialSecs(saved, m) {
+    if (!saved) return TIMER_MODES[m || 'focus'].mins * 60
+    const { secsAtStart, startedAt, running: wasRunning } = saved
+    if (wasRunning && startedAt) {
+      const elapsed = Math.floor((Date.now() - startedAt) / 1000)
+      const remaining = secsAtStart - elapsed
+      return remaining > 0 ? remaining : 0
+    }
+    return secsAtStart ?? TIMER_MODES[m || 'focus'].mins * 60
+  }
+
+  const _saved = loadTimerState()
+  const _initMode = _saved?.mode ?? 'focus'
+  const _initSecs = computeInitialSecs(_saved, _initMode)
+  const _wasStillRunning = (() => {
+    if (!_saved?.running || !_saved?.startedAt) return false
+    const elapsed = Math.floor((Date.now() - _saved.startedAt) / 1000)
+    return (_saved.secsAtStart ?? 0) - elapsed > 0
+  })()
+
+  const [mode, setMode] = useState(_initMode)
+  const [secs, setSecs] = useState(_initSecs)
+  const [running, setRunning] = useState(_wasStillRunning)
+  const [sessions, setSessions] = useState(_saved?.sessions ?? 0)
+  const [history, setHistory] = useState(_saved?.history ?? [])
+
+  function persistTimer(patch) {
+    try {
+      const cur = (() => { try { return JSON.parse(localStorage.getItem('focus_timer') || '{}') } catch { return {} } })()
+      localStorage.setItem('focus_timer', JSON.stringify({ ...cur, ...patch }))
+    } catch { }
+  }
 
   // Add-item form state
-  const [adding,     setAdding]     = useState(false)
-  const [newLabel,   setNewLabel]   = useState('')
-  const [newEmoji,   setNewEmoji]   = useState('💡')
-  const [newColorIdx,setNewColorIdx]= useState(0)
+  const [adding, setAdding] = useState(false)
+  const [newLabel, setNewLabel] = useState('')
+  const [newEmoji, setNewEmoji] = useState('💡')
+  const [newColorIdx, setNewColorIdx] = useState(0)
 
-  const timerRef  = useRef(null)
-  const inputRef  = useRef(null)
+  const timerRef = useRef(null)
+  const inputRef = useRef(null)
 
   const total = TIMER_MODES[mode].mins * 60
-  const prog  = secs / total
+  const prog = secs / total
   const R = 88, C = 2 * Math.PI * R
-  const meta  = MODE_META[mode]
+  const meta = MODE_META[mode]
 
+  // Persist running state + startedAt so navigation doesn't reset the timer
   useEffect(() => {
     if (running) {
+      // Record when we started (or resumed) so we can reconstruct elapsed time on remount
+      persistTimer({ running: true, startedAt: Date.now(), secsAtStart: secs, mode, sessions, history })
       timerRef.current = setInterval(() => {
         setSecs(s => {
           if (s <= 1) {
             setRunning(false)
-            if (mode === 'focus') { setSessions(n => n + 1); setHistory(h => [...h.slice(-7), 'focus']) }
-            else                  { setHistory(h => [...h.slice(-7), mode]) }
+            if (mode === 'focus') {
+              setSessions(n => { const next = n + 1; persistTimer({ running: false, sessions: next }); return next })
+              setHistory(h => { const next = [...h.slice(-7), 'focus']; persistTimer({ history: next }); return next })
+            } else {
+              setHistory(h => { const next = [...h.slice(-7), mode]; persistTimer({ history: next }); return next })
+            }
+            const reset = TIMER_MODES[mode].mins * 60
+            persistTimer({ running: false, secsAtStart: reset, startedAt: null })
             beep()
-            return TIMER_MODES[mode].mins * 60
+            return reset
           }
           if (mode === 'focus') onFocusMinute(1 / 60)
           return s - 1
         })
       }, 1000)
-    } else clearInterval(timerRef.current)
+    } else {
+      clearInterval(timerRef.current)
+      persistTimer({ running: false, secsAtStart: secs, startedAt: null, mode, sessions, history })
+    }
     return () => clearInterval(timerRef.current)
   }, [running, mode])
 
   useEffect(() => { if (adding) setTimeout(() => inputRef.current?.focus(), 50) }, [adding])
 
-  function switchMode(m) { setMode(m); setSecs(TIMER_MODES[m].mins * 60); setRunning(false) }
-  function reset() { setSecs(TIMER_MODES[mode].mins * 60); setRunning(false) }
+  function switchMode(m) {
+    setMode(m)
+    const s = TIMER_MODES[m].mins * 60
+    setSecs(s)
+    setRunning(false)
+    persistTimer({ mode: m, running: false, secsAtStart: s, startedAt: null })
+  }
+  function reset() {
+    const s = TIMER_MODES[mode].mins * 60
+    setSecs(s)
+    setRunning(false)
+    persistTimer({ running: false, secsAtStart: s, startedAt: null })
+  }
 
   function beep() {
     try {
@@ -93,7 +152,7 @@ export default function Focus({ streaks: rawStreaks, setStreaks: setRawStreaks, 
       g.gain.setValueAtTime(0.12, ctx.currentTime)
       g.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 1.2)
       osc.start(); osc.stop(ctx.currentTime + 1.2)
-    } catch {}
+    } catch { }
   }
 
   function toggleCheckin(id) {
@@ -441,11 +500,11 @@ export default function Focus({ streaks: rawStreaks, setStreaks: setRawStreaks, 
                           <AnimatePresence mode="wait">
                             {c.doneToday
                               ? <motion.div key="y" initial={{ scale: 0 }} animate={{ scale: 1 }} exit={{ scale: 0 }} transition={{ type: 'spring', stiffness: 400, damping: 18 }}>
-                                  <CheckCircle2 size={15} color={col.color} />
-                                </motion.div>
+                                <CheckCircle2 size={15} color={col.color} />
+                              </motion.div>
                               : <motion.div key="n" initial={{ scale: 0 }} animate={{ scale: 1 }} exit={{ scale: 0 }}>
-                                  <Circle size={15} color="var(--b2)" />
-                                </motion.div>
+                                <Circle size={15} color="var(--b2)" />
+                              </motion.div>
                             }
                           </AnimatePresence>
                         </motion.button>
@@ -471,8 +530,8 @@ export default function Focus({ streaks: rawStreaks, setStreaks: setRawStreaks, 
                 {sessions === 0
                   ? 'Start your first session. Deep work compounds.'
                   : sessions < 3
-                  ? `${sessions} session${sessions > 1 ? 's' : ''} in. Keep the momentum going.`
-                  : `${sessions} sessions strong. You're locked in. 🔥`}
+                    ? `${sessions} session${sessions > 1 ? 's' : ''} in. Keep the momentum going.`
+                    : `${sessions} sessions strong. You're locked in. 🔥`}
               </p>
             </div>
           </div>
