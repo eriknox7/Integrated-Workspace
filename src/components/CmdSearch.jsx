@@ -63,9 +63,24 @@ export default function CmdSearch({ open, onClose, apps }) {
       {open && (
         <motion.div className="cmd-bg" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
           transition={{ duration: .15 }} onClick={e => e.target === e.currentTarget && onClose()}>
-          <motion.div className="cmd-box"
-            initial={{ opacity: 0, y: -16, scale: .97 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: -10, scale: .97 }}
-            transition={{ type: 'spring', stiffness: 380, damping: 30 }}>
+          <motion.div
+            className="cmd-box"
+            style={{
+              border: '1px solid rgba(160,180,255,0.10)',
+              background: 'rgba(10,14,22,0.78)',
+              backdropFilter: 'blur(22px)',
+              boxShadow: `
+                0 0 0 1px rgba(255,255,255,0.04),
+                0 0 0 1.5px rgba(120,140,255,0.08),
+                0 0 18px rgba(120,140,255,0.12),
+                0 10px 40px rgba(0,0,0,0.45)
+              `,
+            }}
+            initial={{ opacity: 0, y: -16, scale: .97 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: -10, scale: .97 }}
+            transition={{ type: 'spring', stiffness: 380, damping: 30 }}
+          >
 
             {/* Search input */}
             <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '14px 16px', borderBottom: '1px solid var(--b0)' }}>
