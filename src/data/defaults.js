@@ -1,41 +1,64 @@
 export const DEFAULT_APPS = [
   // DSA
-  { id: 1, name: 'LeetCode', url: 'https://leetcode.com', icon: 'https://leetcode.com/favicon.ico', cat: 'Study', fav: false, home: true, homeOrder: 1 },
-  { id: 2, name: 'Codeforces', url: 'https://codeforces.com', icon: 'https://codeforces.org/s/0/favicon-32x32.png', cat: 'Study', fav: false, home: true, homeorder: 0 },
-  { id: 3, name: 'NeetCode', url: 'https://neetcode.io', icon: 'https://neetcode.io/assets/neetcode-io-logo.png', cat: 'Study', fav: false },
+  { id: 1, name: 'LeetCode', url: 'https://leetcode.com', icon: 'https://leetcode.com/favicon.ico', cat: 'Learn', fav: false, home: true, homeOrder: 1 },
+  { id: 2, name: 'Codeforces', url: 'https://codeforces.com', icon: 'https://codeforces.org/s/0/favicon-32x32.png', cat: 'Learn', fav: false, home: true, homeorder: 0 },
+  { id: 3, name: 'NeetCode', url: 'https://neetcode.io', icon: 'https://neetcode.io/assets/neetcode-io-logo.png', cat: 'Learn', fav: false },
   // AI
-  { id: 4, name: 'ChatGPT', url: 'https://chat.openai.com', icon: 'https://chat.openai.com/favicon.ico', cat: 'AI Tools', fav: false, home: true, homeOrder: 2 },
-  { id: 5, name: 'Claude', url: 'https://claude.ai', icon: 'https://img.icons8.com/?size=160&id=kDfpmWz6OSCQ&format=png', cat: 'AI Tools', fav: false, home: true, homeOrder: 3 },
-  { id: 6, name: 'Gemini', url: 'https://gemini.google.com', icon: 'https://img.icons8.com/?size=96&id=rnK88i9FvAFO&format=png', cat: 'AI Tools', fav: false },
-  { id: 7, name: 'Perplexity', url: 'https://perplexity.ai', icon: 'https://img.icons8.com/?size=96&id=kzJWN5jCDzpq&format=png', cat: 'AI Tools', fav: false },
+  { id: 4, name: 'ChatGPT', url: 'https://chat.openai.com', icon: 'https://chat.openai.com/favicon.ico', cat: 'AI', fav: false, home: true, homeOrder: 2 },
+  { id: 5, name: 'Claude', url: 'https://claude.ai', icon: 'https://img.icons8.com/?size=160&id=kDfpmWz6OSCQ&format=png', cat: 'AI', fav: false, home: true, homeOrder: 3 },
+  { id: 6, name: 'Gemini', url: 'https://gemini.google.com', icon: 'https://img.icons8.com/?size=96&id=rnK88i9FvAFO&format=png', cat: 'AI', fav: false },
+  { id: 7, name: 'Perplexity', url: 'https://perplexity.ai', icon: 'https://img.icons8.com/?size=96&id=kzJWN5jCDzpq&format=png', cat: 'AI', fav: false },
   // Dev
-  { id: 8, name: 'GitHub', url: 'https://github.com', icon: 'https://img.icons8.com/?size=120&id=0tREDFkScvsm&format=png', cat: 'Developer', fav: false },
-  { id: 9, name: 'VS Code', url: 'https://vscode.dev', icon: 'https://img.icons8.com/?size=96&id=9OGIyU8hrxW5&format=png', cat: 'Developer', fav: false },
-  { id: 10, name: 'Stack Overflow', url: 'https://stackoverflow.com', icon: 'https://stackoverflow.com/favicon.ico', cat: 'Developer', fav: false },
-  { id: 11, name: 'MDN', url: 'https://developer.mozilla.org', icon: 'https://developer.mozilla.org/favicon.ico', cat: 'Developer', fav: false },
-  { id: 12, name: 'Regex101', url: 'https://regex101.com', icon: 'https://img.icons8.com/?size=160&id=4swbi_BZ7hlw&format=png', cat: 'Developer', fav: false },
-  // Study
+  { id: 8, name: 'GitHub', url: 'https://github.com', icon: 'https://img.icons8.com/?size=120&id=0tREDFkScvsm&format=png', cat: 'Dev', fav: false },
+  { id: 9, name: 'VS Code', url: 'https://vscode.dev', icon: 'https://img.icons8.com/?size=96&id=9OGIyU8hrxW5&format=png', cat: 'Dev', fav: false },
+  { id: 10, name: 'Stack Overflow', url: 'https://stackoverflow.com', icon: 'https://stackoverflow.com/favicon.ico', cat: 'Dev', fav: false },
+  { id: 11, name: 'MDN', url: 'https://Dev.mozilla.org', icon: 'https://Dev.mozilla.org/favicon.ico', cat: 'Dev', fav: false },
+  { id: 12, name: 'Regex101', url: 'https://regex101.com', icon: 'https://img.icons8.com/?size=160&id=4swbi_BZ7hlw&format=png', cat: 'Dev', fav: false },
+  // Learn
   { id: 13, name: 'Notion', url: 'https://notion.so', icon: 'https://www.notion.so/images/favicon.ico', cat: 'Productivity', fav: false },
-  { id: 14, name: 'Coursera', url: 'https://coursera.org', icon: 'https://d3njjcbhbojbot.cloudfront.net/web/images/favicons/favicon-v2-32x32.png', cat: 'Study', fav: false },
+  { id: 14, name: 'Coursera', url: 'https://coursera.org', icon: 'https://d3njjcbhbojbot.cloudfront.net/web/images/favicons/favicon-v2-32x32.png', cat: 'Learn', fav: false },
   // Social
   { id: 15, name: 'Twitter / X', url: 'https://x.com', icon: 'https://abs.twimg.com/favicons/twitter.3.ico', cat: 'Social', fav: false },
   { id: 16, name: 'LinkedIn', url: 'https://linkedin.com', icon: 'https://static.licdn.com/sc/h/al2o9zrvru7aqj8e1x2rzsrca', cat: 'Social', fav: false, home: true, homeOrder: 4 },
-  // Streaming
-  { id: 17, name: 'YouTube', url: 'https://youtube.com', icon: 'https://img.icons8.com/?size=96&id=19318&format=png', cat: 'Streaming', fav: false, home: true, homeOrder: 6 },
-  { id: 18, name: 'Spotify', url: 'https://open.spotify.com', icon: 'https://open.spotifycdn.com/cdn/images/favicon32.b64ecc03.png', cat: 'Streaming', fav: false, home: true, homeOrder: 7 },
-  // Utilities
-  { id: 19, name: 'Excalidraw', url: 'https://excalidraw.com', icon: 'https://excalidraw.com/favicon.ico', cat: 'Utilities', fav: false },
-  { id: 20, name: 'Figma', url: 'https://figma.com', icon: 'https://static.figma.com/app/icon/1/favicon.ico', cat: 'Utilities', fav: false },
+  // Media
+  { id: 17, name: 'YouTube', url: 'https://youtube.com', icon: 'https://img.icons8.com/?size=96&id=19318&format=png', cat: 'Media', fav: false, home: true, homeOrder: 6 },
+  { id: 18, name: 'Spotify', url: 'https://open.spotify.com', icon: 'https://open.spotifycdn.com/cdn/images/favicon32.b64ecc03.png', cat: 'Media', fav: false, home: true, homeOrder: 7 },
+  // Design
+  { id: 19, name: 'Excalidraw', url: 'https://excalidraw.com', icon: 'https://excalidraw.com/favicon.ico', cat: 'Design', fav: false },
+  { id: 20, name: 'Figma', url: 'https://figma.com', icon: 'https://static.figma.com/app/icon/1/favicon.ico', cat: 'Design', fav: false },
   { id: 21, name: 'Instagram', url: 'https://instagram.com', icon: 'https://static.cdninstagram.com/rsrc.php/v3/yI/r/VsNE-OHk_8a.png', cat: 'Social', fav: false, home: true, homeOrder: 5 },
   { id: 22, name: 'Pinterest', url: 'https://in.pinterest.com/', icon: 'https://img.icons8.com/?size=96&id=XErM9A1xNUK5&format=png', cat: 'Social', fav: false },
-  { id: 23, name: 'Amazon', url: 'https://www.amazon.in/', icon: 'https://img.icons8.com/?size=160&id=67j6ReSm130J&format=png', cat: 'E-commerce', fav: false, home: true, homeOrder: 8 },
-  { id: 24, name: 'Udemy', url: 'https://www.udemy.com/', icon: 'https://img.icons8.com/?size=160&id=ZGFCSq0zrC5g&format=png', cat: 'Study', fav: false },
+  { id: 23, name: 'Amazon', url: 'https://www.amazon.in/', icon: 'https://img.icons8.com/?size=160&id=67j6ReSm130J&format=png', cat: 'Shop', fav: false, home: true, homeOrder: 8 },
+  { id: 24, name: 'Udemy', url: 'https://www.udemy.com/', icon: 'https://img.icons8.com/?size=160&id=ZGFCSq0zrC5g&format=png', cat: 'Learn', fav: false, home: true, homeOrder: 9 },
   { id: 25, name: 'Telegram', url: 'https://web.telegram.org/', icon: 'https://img.icons8.com/?size=160&id=yEmPT1iidhE0&format=png', cat: 'Social', fav: false },
-  { id: 26, name: 'Flipkart', url: 'https://www.flipkart.com/', icon: 'https://img.icons8.com/?size=160&id=UU2im0hihoyi&format=png', cat: 'E-commerce', fav: false }
+  { id: 26, name: 'Flipkart', url: 'https://www.flipkart.com/', icon: 'https://img.icons8.com/?size=160&id=UU2im0hihoyi&format=png', cat: 'Shop', fav: false },
+  { id: 27, name: 'Grok', url: 'https://grok.com/', icon: 'https://img.icons8.com/?size=96&id=USGXKHXKl9X7&format=png', cat: 'AI', fav: false },
+  { id: 28, name: 'DeepSeek', url: 'https://chat.deepseek.com/', icon: 'https://img.icons8.com/?size=96&id=YWOidjGxCpFW&format=png', cat: 'AI', fav: false },
+  { id: 29, name: 'Hugging Face', url: 'https://huggingface.co/', icon: 'https://img.icons8.com/?size=96&id=sop9ROXku5bb&format=png', cat: 'AI', fav: false },
+  { id: 30, name: 'Gitlab', url: 'https://gitlab.com/', icon: 'https://img.icons8.com/?size=96&id=34886&format=png', cat: 'Dev', fav: false },
+  { id: 31, name: 'Postman', url: 'https://www.postman.com/', icon: 'https://icon.icepanel.io/Technology/svg/Postman.svg', cat: 'Dev', fav: false },
+  { id: 32, name: 'Docker', url: 'https://www.docker.com/', icon: 'https://img.icons8.com/?size=160&id=LdUzF8b5sz2R&format=png', cat: 'Dev', fav: false },
+  { id: 33, name: 'AWS', url: 'https://aws.amazon.com/', icon: 'https://img.icons8.com/?size=128&id=wU62u24brJ44&format=png', cat: 'Dev', fav: false },
+  { id: 34, name: 'Firebase', url: 'https://firebase.google.com/', icon: 'https://img.icons8.com/?size=160&id=9AHxUOg7E9q2&format=png', cat: 'Dev', fav: false },
+  { id: 35, name: 'Vercel', url: 'https://vercel.com/', icon: 'https://img.icons8.com/?size=100&id=2xFS7aynbwiR&format=png', cat: 'Dev', fav: false },
+  { id: 36, name: 'Netlify', url: 'https://www.netlify.com/', icon: 'https://img.icons8.com/?size=96&id=ZupwkKQQjjAn&format=png', cat: 'Dev', fav: false },
+  { id: 37, name: 'HackerRank', url: 'https://hackerrank.com', icon: 'https://img.icons8.com/?size=96&id=bcdiBt8pFXfZ&format=png', cat: 'Learn', fav: false },
+  { id: 38, name: 'GeeksForGeeks', url: 'https://www.geeksforgeeks.org/', icon: 'https://img.icons8.com/?size=96&id=AbQBhN9v62Ob&format=png', cat: 'Learn', fav: false },
+  { id: 39, name: 'Kaggle', url: 'https://www.kaggle.com/', icon: 'https://img.icons8.com/?size=160&id=Omk4fWoSmCHm&format=png', cat: 'Learn', fav: false },
+  { id: 40, name: 'Canva', url: 'https://www.canva.com/', icon: 'https://img.icons8.com/?size=128&id=HGd2amAYhRGr&format=png', cat: 'Design', fav: false },
+  { id: 41, name: 'Framer', url: 'https://www.framer.com/', icon: 'https://img.icons8.com/?size=160&id=js8pNS2UtYKY&format=png', cat: 'Design', fav: false },
+  { id: 42, name: 'Dribble', url: 'https://dribbble.com/', icon: 'https://img.icons8.com/?size=96&id=Wkmw3VcFPr8T&format=png', cat: 'Design', fav: false },
+  { id: 43, name: 'Behance', url: 'https://www.behance.net/', icon: 'https://img.icons8.com/?size=96&id=13655&format=png', cat: 'Design', fav: false },
+  { id: 44, name: 'Discord', url: 'https://discord.com/', icon: 'https://img.icons8.com/?size=160&id=D2NqKl85S8Ye&format=png', cat: 'Social', fav: false },
+  { id: 45, name: 'Netflix', url: 'https://www.netflix.com/in/', icon: 'https://w7.pngwing.com/pngs/393/55/png-transparent-netflix-logo-thumbnail.png', cat: 'Media', fav: false },
+  { id: 46, name: 'Amazon Prime', url: 'https://www.primevideo.com/', icon: 'https://cdn.iconscout.com/icon/free/png-512/free-amazon-prime-icon-svg-download-png-14551396.png?f=webp&w=512', cat: 'Media', fav: false },
+  { id: 47, name: 'Remove.bg', url: 'https://www.remove.bg/', icon: 'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQC698bq65dz3P9UGxKAUdL_RO_UI5Ia1CVnQ&s', cat: 'Utility', fav: false },
+  { id: 48, name: 'TinyPNG', url: 'https://tinypng.com/', icon: 'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTi9Og5M7n6s-rikLrsDDv7y5FdqwRh0ZLbhg&s', cat: 'Utility', fav: false },
+
 ]
 
-export const CATEGORIES = ['All', 'AI Tools', 'Developer', 'Study', 'Social', 'Streaming', 'Utilities', 'E-commerce', 'Productivity']
-export const FOCUS_HIDDEN = ['Social', 'Streaming']
+export const CATEGORIES = ['All', 'AI', 'Dev', 'Learn', 'Social', 'Media', 'Design', 'Shop', 'Productivity', 'Utility']
+export const FOCUS_HIDDEN = ['Social', 'Media']
 
 export const SHORTCUTS = {
   yt: { label: 'YouTube', url: 'https://www.youtube.com/results?search_query=' },
@@ -47,7 +70,7 @@ export const SHORTCUTS = {
   gg: { label: 'Google', url: 'https://google.com/search?q=' },
   px: { label: 'Perplexity', url: 'https://perplexity.ai/?q=' },
 
-  mdn: { label: 'MDN', url: 'https://developer.mozilla.org/search?q=' },
+  mdn: { label: 'MDN', url: 'https://Dev.mozilla.org/search?q=' },
   npm: { label: 'npm', url: 'https://www.npmjs.com/search?q=' },
   so: { label: 'StackOverflow', url: 'https://stackoverflow.com/search?q=' },
   dev: { label: 'Dev.to', url: 'https://dev.to/search?q=' },
@@ -99,7 +122,7 @@ export const DEFAULT_TODOS = [
 
 export const DEFAULT_STREAKS = {
   dsa: { doneToday: false, label: 'DSA', color: '#5b6af8' },
-  study: { doneToday: false, label: 'Study', color: '#34c48b' },
+  Learn: { doneToday: false, label: 'Learn', color: '#34c48b' },
   focus: { doneToday: false, label: 'Focus', color: '#e8a045' },
 }
 
@@ -166,7 +189,7 @@ export const MOTIVATIONS = [
   'The work speaks eventually.',
   'Make the interface feel effortless.',
   'Strong foundations create strong systems.',
-  'A focused developer is unstoppable.',
+  'A focused Dev is unstoppable.',
   'Tiny improvements stack fast.',
   'You become what you repeatedly do.',
   'The next version of you is built daily.',

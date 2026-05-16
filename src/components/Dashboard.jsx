@@ -48,6 +48,7 @@ export default function Dashboard({ apps, setApps, focusMode, onOpenSearch }) {
     const url = raw.startsWith('http') ? raw : 'https://' + raw
     let label = raw
     try { label = new URL(url).hostname.replace('www.', '') } catch { }
+    if (pins.length >= 3) return
     savePins([...pins, { id: Date.now(), url, label }])
     setPinInput('')
     setAddingPin(false)
@@ -89,6 +90,7 @@ export default function Dashboard({ apps, setApps, focusMode, onOpenSearch }) {
     setApps(prev => {
       const isHome = prev.find(a => a.id === id)?.home
       if (isHome) return prev.map(a => a.id === id ? { ...a, home: false } : a)
+      if (prev.filter(a => a.home).length >= 10) return prev
       // add at end
       const maxOrder = Math.max(0, ...prev.filter(a => a.home).map(a => a.homeOrder || 0))
       return prev.map(a => a.id === id ? { ...a, home: true, homeOrder: maxOrder + 1 } : a)
@@ -198,7 +200,11 @@ export default function Dashboard({ apps, setApps, focusMode, onOpenSearch }) {
                     const rect = e.currentTarget.getBoundingClientRect()
                     const x = e.clientX - rect.left
 
-                    if (x > 80 && x < rect.width - 80) {
+                    if (
+                      homeApps.length < 10 &&
+                      x > 80 &&
+                      x < rect.width - 80
+                    ) {
                       setShowAddTile(true)
                     }
                   }}
@@ -471,7 +477,8 @@ function QuickLinksZone({ pins, addingPin, setAddingPin, pinInput, setPinInput, 
     }
   }, [addingPin, setAddingPin, setPinInput])
 
-  const show = visible || addingPin || pins.length > 0
+  const canAddMorePins = pins.length < 3
+  const show = (canAddMorePins && visible) || addingPin || pins.length > 0
 
   return (
     <div
@@ -533,20 +540,35 @@ function QuickLinksZone({ pins, addingPin, setAddingPin, pinInput, setPinInput, 
                     <Check size={11} color="#fff" />
                   </button>
                 </div>
-              ) : (
-                <button onClick={() => setAddingPin(true)}
+              ) : canAddMorePins ? (
+                <button
+                  onClick={() => setAddingPin(true)}
                   style={{
-                    display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    width: 22, height: 22, borderRadius: '50%',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    width: 22,
+                    height: 22,
+                    borderRadius: '50%',
                     background: 'transparent',
                     border: '1px dashed var(--b1)',
-                    cursor: 'pointer', color: 'var(--t3)', transition: 'all .15s', flexShrink: 0,
+                    cursor: 'pointer',
+                    color: 'var(--t3)',
+                    transition: 'all .15s',
+                    flexShrink: 0,
                   }}
-                  onMouseEnter={e => { e.currentTarget.style.color = 'var(--accent)'; e.currentTarget.style.borderColor = 'var(--accent)' }}
-                  onMouseLeave={e => { e.currentTarget.style.color = 'var(--t3)'; e.currentTarget.style.borderColor = 'var(--b1)' }}>
+                  onMouseEnter={e => {
+                    e.currentTarget.style.color = 'var(--accent)'
+                    e.currentTarget.style.borderColor = 'var(--accent)'
+                  }}
+                  onMouseLeave={e => {
+                    e.currentTarget.style.color = 'var(--t3)'
+                    e.currentTarget.style.borderColor = 'var(--b1)'
+                  }}
+                >
                   <Plus size={11} />
                 </button>
-              )}
+              ) : null}
             </motion.div>
           )}
         </AnimatePresence>
@@ -554,7 +576,6 @@ function QuickLinksZone({ pins, addingPin, setAddingPin, pinInput, setPinInput, 
     </div>
   )
 }
-
 /* ── Quick link chip ───────────────────────────────────── */
 function QuickLink({ pin, onRemove }) {
   const [hov, setHov] = useState(false)

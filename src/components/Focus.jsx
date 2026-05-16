@@ -18,10 +18,8 @@ const COLOR_OPTIONS = [
   { color: 'var(--red)', dim: 'var(--red-dim)', border: 'rgba(224,92,92,0.22)' },
 ]
 
-// Migrate old object-based streaks to array format
 function normalizeStreaks(raw) {
   if (Array.isArray(raw)) return raw
-  // old format: { dsa: { label, doneToday, count, color }, ... }
   return Object.entries(raw).map(([key, s], i) => ({
     id: key,
     label: s.label ?? key,
@@ -31,7 +29,32 @@ function normalizeStreaks(raw) {
   }))
 }
 
-export default function Focus({ streaks: rawStreaks, setStreaks: setRawStreaks, focusMins, onFocusMinute }) {
+// ── localStorage helpers ────────────────────────────────
+function loadTimer() {
+  try { return JSON.parse(localStorage.getItem('focus_timer') || '{}') } catch { return {} }
+}
+function saveTimer(patch) {
+  try {
+    const cur = loadTimer()
+    localStorage.setItem('focus_timer', JSON.stringify({ ...cur, ...patch }))
+  } catch { }
+}
+
+// Focus-seconds logged today (separate key, reset daily)
+function loadFocusSecs() {
+  try {
+    const raw = JSON.parse(localStorage.getItem('focus_secs_today') || '{}')
+    const today = new Date().toDateString()
+    if (raw.date !== today) return 0
+    return raw.secs ?? 0
+  } catch { return 0 }
+}
+function saveFocusSecs(secs) {
+  localStorage.setItem('focus_secs_today', JSON.stringify({ date: new Date().toDateString(), secs }))
+}
+
+export default function Focus({ streaks: rawStreaks, setStreaks: setRawStreaks }) {
+  // ── Streaks / check-ins ─────────────────────────────
   const checkins = normalizeStreaks(rawStreaks)
   function setCheckins(updater) {
     setRawStreaks(prev => {
@@ -40,49 +63,49 @@ export default function Focus({ streaks: rawStreaks, setStreaks: setRawStreaks, 
     })
   }
 
-  // --- Timer state persisted via localStorage + start-timestamp trick ---
-  function loadTimerState() {
-    try {
-      const raw = localStorage.getItem('focus_timer')
-      if (!raw) return null
-      return JSON.parse(raw)
-    } catch { return null }
-  }
-
-  function computeInitialSecs(saved, m) {
-    if (!saved) return TIMER_MODES[m || 'focus'].mins * 60
-    const { secsAtStart, startedAt, running: wasRunning } = saved
-    if (wasRunning && startedAt) {
-      const elapsed = Math.floor((Date.now() - startedAt) / 1000)
-      const remaining = secsAtStart - elapsed
-      return remaining > 0 ? remaining : 0
+  useEffect(() => {
+    const today = new Date().toDateString()
+    if (localStorage.getItem('focus_checkin_reset') !== today) {
+      localStorage.setItem('focus_checkin_reset', today)
+      setCheckins(list => list.map(c => ({ ...c, doneToday: false })))
     }
-    return secsAtStart ?? TIMER_MODES[m || 'focus'].mins * 60
+  }, [])
+
+  // ── Daily reset ─────────────────────────────────────
+  const today = new Date().toDateString()
+  const isNewDay = localStorage.getItem('focus_last_launch') !== today
+  if (isNewDay) {
+    localStorage.setItem('focus_last_launch', today)
+    localStorage.setItem('focus_timer', JSON.stringify({
+      mode: 'focus', running: false,
+      secsAtStart: TIMER_MODES.focus.mins * 60,
+      startedAt: null, sessions: 0, history: [],
+    }))
+    saveFocusSecs(0)
   }
 
-  const _saved = loadTimerState()
-  const _initMode = _saved?.mode ?? 'focus'
-  const _initSecs = computeInitialSecs(_saved, _initMode)
-  const _wasStillRunning = (() => {
-    if (!_saved?.running || !_saved?.startedAt) return false
-    const elapsed = Math.floor((Date.now() - _saved.startedAt) / 1000)
-    return (_saved.secsAtStart ?? 0) - elapsed > 0
+  // ── Bootstrap timer state from localStorage ─────────
+  const _t = loadTimer()
+  const _initMode = _t.mode ?? 'focus'
+  const _initSecs = (() => {
+    if (!isNewDay && _t.running && _t.startedAt) {
+      const rem = (_t.secsAtStart ?? 0) - Math.floor((Date.now() - _t.startedAt) / 1000)
+      return rem > 0 ? rem : 0
+    }
+    return _t.secsAtStart ?? TIMER_MODES[_initMode].mins * 60
   })()
+  const _initRunning = !isNewDay && !!_t.running && !!_t.startedAt &&
+    ((_t.secsAtStart ?? 0) - Math.floor((Date.now() - _t.startedAt) / 1000)) > 0
 
+  // ── State ───────────────────────────────────────────
   const [mode, setMode] = useState(_initMode)
   const [secs, setSecs] = useState(_initSecs)
-  const [running, setRunning] = useState(_wasStillRunning)
-  const [sessions, setSessions] = useState(_saved?.sessions ?? 0)
-  const [history, setHistory] = useState(_saved?.history ?? [])
+  const [running, setRunning] = useState(_initRunning)
+  const [sessions, setSessions] = useState(isNewDay ? 0 : (_t.sessions ?? 0))
+  const [history, setHistory] = useState(isNewDay ? [] : (_t.history ?? []))
+  const [focusSecs, setFocusSecs] = useState(loadFocusSecs)  // live display
 
-  function persistTimer(patch) {
-    try {
-      const cur = (() => { try { return JSON.parse(localStorage.getItem('focus_timer') || '{}') } catch { return {} } })()
-      localStorage.setItem('focus_timer', JSON.stringify({ ...cur, ...patch }))
-    } catch { }
-  }
-
-  // Add-item form state
+  // Add-form state
   const [adding, setAdding] = useState(false)
   const [newLabel, setNewLabel] = useState('')
   const [newEmoji, setNewEmoji] = useState('💡')
@@ -96,51 +119,114 @@ export default function Focus({ streaks: rawStreaks, setStreaks: setRawStreaks, 
   const R = 88, C = 2 * Math.PI * R
   const meta = MODE_META[mode]
 
-  // Persist running state + startedAt so navigation doesn't reset the timer
+  // ── Core interval ───────────────────────────────────
+  // Reads everything fresh from localStorage each tick → immune to sleep/drift
   useEffect(() => {
-    if (running) {
-      // Record when we started (or resumed) so we can reconstruct elapsed time on remount
-      persistTimer({ running: true, startedAt: Date.now(), secsAtStart: secs, mode, sessions, history })
-      timerRef.current = setInterval(() => {
-        setSecs(s => {
-          if (s <= 1) {
-            setRunning(false)
-            if (mode === 'focus') {
-              setSessions(n => { const next = n + 1; persistTimer({ running: false, sessions: next }); return next })
-              setHistory(h => { const next = [...h.slice(-7), 'focus']; persistTimer({ history: next }); return next })
-            } else {
-              setHistory(h => { const next = [...h.slice(-7), mode]; persistTimer({ history: next }); return next })
-            }
-            const reset = TIMER_MODES[mode].mins * 60
-            persistTimer({ running: false, secsAtStart: reset, startedAt: null })
-            beep()
-            return reset
-          }
-          if (mode === 'focus') onFocusMinute(1 / 60)
-          return s - 1
-        })
-      }, 1000)
-    } else {
+    if (!running) {
       clearInterval(timerRef.current)
-      persistTimer({ running: false, secsAtStart: secs, startedAt: null, mode, sessions, history })
+      return
     }
+
+    timerRef.current = setInterval(() => {
+      const t = loadTimer()
+      if (!t.startedAt) return
+
+      const elapsed = Math.floor((Date.now() - t.startedAt) / 1000)
+      const remaining = (t.secsAtStart ?? 0) - elapsed
+
+      // ── Update focus-minutes display (realtime, wall-clock based) ──
+      if ((t.mode ?? 'focus') === 'focus') {
+        // secsLogged = secs elapsed so far in THIS session
+        const secsThisSession = Math.min(elapsed, t.secsAtStart ?? 0)
+        // baseSecsToday = what was logged before this session started
+        const baseSecsToday = t.baseSecsToday ?? 0
+        const totalToday = baseSecsToday + secsThisSession
+        setFocusSecs(totalToday)
+        saveFocusSecs(totalToday)
+      }
+
+      // ── Timer expired ──
+      if (remaining <= 0) {
+        clearInterval(timerRef.current)
+        const m = t.mode ?? 'focus'
+
+        if (m === 'focus') {
+          // Finalize focus seconds for this session
+          const finalSecs = (t.baseSecsToday ?? 0) + (t.secsAtStart ?? 0)
+          setFocusSecs(finalSecs)
+          saveFocusSecs(finalSecs)
+
+          setSessions(n => {
+            const next = n + 1
+            saveTimer({ sessions: next })
+            return next
+          })
+          setHistory(h => {
+            const next = [...h.slice(-7), 'focus']
+            saveTimer({ history: next })
+            return next
+          })
+        } else {
+          setHistory(h => {
+            const next = [...h.slice(-7), m]
+            saveTimer({ history: next })
+            return next
+          })
+        }
+
+        const resetSecs = TIMER_MODES[m].mins * 60
+        saveTimer({ running: false, secsAtStart: resetSecs, startedAt: null, baseSecsToday: loadFocusSecs() })
+        setSecs(resetSecs)
+        setRunning(false)
+        beep()
+        return
+      }
+
+      setSecs(remaining)
+    }, 1000)
+
     return () => clearInterval(timerRef.current)
-  }, [running, mode])
+  }, [running])
 
   useEffect(() => { if (adding) setTimeout(() => inputRef.current?.focus(), 50) }, [adding])
 
-  function switchMode(m) {
-    setMode(m)
-    const s = TIMER_MODES[m].mins * 60
-    setSecs(s)
-    setRunning(false)
-    persistTimer({ mode: m, running: false, secsAtStart: s, startedAt: null })
+  // ── Controls ────────────────────────────────────────
+  function startTimer() {
+    const now = Date.now()
+    // baseSecsToday = focus secs already logged today before this session
+    const base = mode === 'focus' ? loadFocusSecs() : 0
+    saveTimer({ running: true, startedAt: now, secsAtStart: secs, mode, sessions, history, baseSecsToday: base })
+    setRunning(true)
   }
+
+  function pauseTimer() {
+    // Snapshot how many focus secs we've accumulated so far
+    if (mode === 'focus') {
+      const t = loadTimer()
+      if (t.startedAt) {
+        const elapsed = Math.floor((Date.now() - t.startedAt) / 1000)
+        const secsThisSession = Math.min(elapsed, t.secsAtStart ?? 0)
+        const totalToday = (t.baseSecsToday ?? 0) + secsThisSession
+        saveFocusSecs(totalToday)
+        setFocusSecs(totalToday)
+      }
+    }
+    saveTimer({ running: false, startedAt: null, secsAtStart: secs })
+    setRunning(false)
+  }
+
+  function switchMode(m) {
+    const s = TIMER_MODES[m].mins * 60
+    setMode(m)
+    setSecs(s)
+    saveTimer({ mode: m, running: false, secsAtStart: s, startedAt: null })
+  }
+
   function reset() {
     const s = TIMER_MODES[mode].mins * 60
     setSecs(s)
     setRunning(false)
-    persistTimer({ running: false, secsAtStart: s, startedAt: null })
+    saveTimer({ running: false, secsAtStart: s, startedAt: null })
   }
 
   function beep() {
@@ -155,38 +241,26 @@ export default function Focus({ streaks: rawStreaks, setStreaks: setRawStreaks, 
     } catch { }
   }
 
-  function toggleCheckin(id) {
-    setCheckins(list => list.map(c => c.id === id ? { ...c, doneToday: !c.doneToday } : c))
-  }
-  function removeCheckin(id) {
-    setCheckins(list => list.filter(c => c.id !== id))
-  }
+  // ── Check-in actions ────────────────────────────────
+  function toggleCheckin(id) { setCheckins(list => list.map(c => c.id === id ? { ...c, doneToday: !c.doneToday } : c)) }
+  function removeCheckin(id) { setCheckins(list => list.filter(c => c.id !== id)) }
   function addCheckin() {
     if (!newLabel.trim()) return
-    setCheckins(list => [...list, {
-      id: `ci_${Date.now()}`,
-      label: newLabel.trim(),
-      emoji: newEmoji,
-      colorIdx: newColorIdx,
-      doneToday: false,
-    }])
+    setCheckins(list => [...list, { id: `ci_${Date.now()}`, label: newLabel.trim(), emoji: newEmoji, colorIdx: newColorIdx, doneToday: false }])
     setNewLabel(''); setNewEmoji('💡'); setNewColorIdx(0); setAdding(false)
   }
 
-  const elapsed = Math.round(focusMins)
-  const elapsedDisplay = elapsed >= 60 ? `${Math.floor(elapsed / 60)}h ${elapsed % 60}m` : `${elapsed}m`
+  // ── Display ─────────────────────────────────────────
+  const totalMins = Math.floor(focusSecs / 60)
+  const focusDisplay = totalMins >= 60
+    ? `${Math.floor(totalMins / 60)}h ${totalMins % 60}m`
+    : `${totalMins}m`
   const doneCount = checkins.filter(c => c.doneToday).length
 
   return (
-    <div style={{
-      minHeight: 'calc(100vh - 52px)',
-      background: 'var(--bg-0)',
-      display: 'flex', alignItems: 'flex-start', justifyContent: 'center',
-      padding: '44px 32px 80px',
-    }}>
+    <div style={{ minHeight: 'calc(100vh - 52px)', background: 'var(--bg-0)', display: 'flex', alignItems: 'flex-start', justifyContent: 'center', padding: '44px 32px 80px' }}>
       <div style={{ width: '100%', maxWidth: 1080 }}>
 
-        {/* Page header */}
         <div style={{ marginBottom: 36 }}>
           <h2 style={{ fontSize: 26, fontWeight: 700, letterSpacing: '-0.04em', color: 'var(--t0)', marginBottom: 4 }}>Focus</h2>
           <p style={{ fontSize: 13, color: 'var(--t2)' }}>Stay in deep work. One session at a time.</p>
@@ -195,22 +269,23 @@ export default function Focus({ streaks: rawStreaks, setStreaks: setRawStreaks, 
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20, alignItems: 'start' }}>
 
           {/* ══ TIMER PANEL ══ */}
-          <motion.div
-            initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }}
-            transition={{ type: 'spring', stiffness: 280, damping: 28 }}
-            style={{ background: 'rgba(255,255,255,0.025)', border: '1px solid var(--b1)', borderRadius: 'var(--r-xl)', overflow: 'hidden' }}
-          >
+          <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ type: 'spring', stiffness: 280, damping: 28 }}
+            style={{ background: 'rgba(255,255,255,0.025)', border: '1px solid var(--b1)', borderRadius: 'var(--r-xl)', overflow: 'hidden' }}>
+
             {/* Mode tabs */}
             <div style={{ display: 'flex', borderBottom: '1px solid var(--b0)' }}>
               {Object.entries(TIMER_MODES).map(([k, v]) => (
-                <button key={k} onClick={() => switchMode(k)} style={{
-                  flex: 1, padding: '14px 0', fontSize: 12, fontWeight: 600,
-                  cursor: 'pointer', transition: 'all .15s',
-                  background: mode === k ? MODE_META[k].bg : 'transparent',
-                  borderBottom: mode === k ? `2px solid ${MODE_META[k].color}` : '2px solid transparent',
-                  color: mode === k ? MODE_META[k].color : 'var(--t2)',
-                  letterSpacing: '0.03em',
-                }}>
+                <button key={k} onClick={() => !running && switchMode(k)}
+                  title={running && k !== mode ? 'Stop the timer before switching modes' : ''}
+                  style={{
+                    flex: 1, padding: '14px 0', fontSize: 12, fontWeight: 600, transition: 'all .15s',
+                    cursor: running && k !== mode ? 'not-allowed' : 'pointer',
+                    opacity: running && k !== mode ? 0.35 : 1,
+                    background: mode === k ? MODE_META[k].bg : 'transparent',
+                    borderBottom: mode === k ? `2px solid ${MODE_META[k].color}` : '2px solid transparent',
+                    color: mode === k ? MODE_META[k].color : 'var(--t2)',
+                    letterSpacing: '0.03em',
+                  }}>
                   {v.label}
                 </button>
               ))}
@@ -226,18 +301,13 @@ export default function Focus({ streaks: rawStreaks, setStreaks: setRawStreaks, 
                       animate={{ opacity: [0.4, 0.15, 0.4], scale: [1, 1.06, 1] }}
                       exit={{ opacity: 0 }}
                       transition={{ duration: 2.4, repeat: Infinity, ease: 'easeInOut' }}
-                      style={{
-                        position: 'absolute', inset: -20, borderRadius: '50%',
-                        background: `radial-gradient(circle, ${meta.glow} 0%, transparent 70%)`,
-                        pointerEvents: 'none',
-                      }}
+                      style={{ position: 'absolute', inset: -20, borderRadius: '50%', background: `radial-gradient(circle, ${meta.glow} 0%, transparent 70%)`, pointerEvents: 'none' }}
                     />
                   )}
                 </AnimatePresence>
                 <svg width="210" height="210" viewBox="0 0 210 210" style={{ transform: 'rotate(-90deg)' }}>
                   <circle cx="105" cy="105" r={R} fill="none" stroke="var(--b1)" strokeWidth="4" />
-                  <motion.circle
-                    cx="105" cy="105" r={R} fill="none" stroke={meta.color} strokeWidth="4"
+                  <motion.circle cx="105" cy="105" r={R} fill="none" stroke={meta.color} strokeWidth="4"
                     strokeLinecap="round" strokeDasharray={C}
                     animate={{ strokeDashoffset: C * (1 - prog) }}
                     transition={running ? { duration: 1, ease: 'linear' } : { duration: 0.4 }}
@@ -257,12 +327,9 @@ export default function Focus({ streaks: rawStreaks, setStreaks: setRawStreaks, 
 
               {/* Controls */}
               <div style={{ display: 'flex', gap: 10, justifyContent: 'center', marginBottom: 28 }}>
-                <motion.button whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.95 }} onClick={() => setRunning(r => !r)}
-                  style={{
-                    display: 'flex', alignItems: 'center', gap: 8, padding: '12px 36px',
-                    borderRadius: 'var(--r)', background: meta.color, color: '#fff',
-                    fontSize: 14, fontWeight: 600, boxShadow: `0 6px 20px ${meta.glow}`, transition: 'box-shadow .2s',
-                  }}>
+                <motion.button whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.95 }}
+                  onClick={running ? pauseTimer : startTimer}
+                  style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '12px 36px', borderRadius: 'var(--r)', background: meta.color, color: '#fff', fontSize: 14, fontWeight: 600, boxShadow: `0 6px 20px ${meta.glow}`, transition: 'box-shadow .2s' }}>
                   {running ? <><Pause size={15} /> Pause</> : <><Play size={15} /> Start</>}
                 </motion.button>
                 <motion.button whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.92 }} onClick={reset}
@@ -271,14 +338,13 @@ export default function Focus({ streaks: rawStreaks, setStreaks: setRawStreaks, 
                 </motion.button>
               </div>
 
-              {/* Session history dots */}
+              {/* Session history */}
               <div style={{ borderTop: '1px solid var(--b0)', paddingTop: 20 }}>
                 <p className="label" style={{ marginBottom: 12 }}>Session history</p>
                 <div style={{ display: 'flex', gap: 7, justifyContent: 'center', flexWrap: 'wrap' }}>
                   {history.length === 0 && <span style={{ fontSize: 12, color: 'var(--t3)' }}>No sessions yet this run</span>}
                   {history.map((type, i) => (
-                    <motion.div key={i}
-                      initial={{ scale: 0, opacity: 0 }} animate={{ scale: 1, opacity: 1 }}
+                    <motion.div key={i} initial={{ scale: 0, opacity: 0 }} animate={{ scale: 1, opacity: 1 }}
                       transition={{ type: 'spring', stiffness: 400, damping: 20 }}
                       title={TIMER_MODES[type]?.label ?? type}
                       style={{ width: 10, height: 10, borderRadius: '50%', background: MODE_META[type]?.color ?? 'var(--t2)', boxShadow: `0 0 6px ${MODE_META[type]?.glow ?? 'transparent'}` }}
@@ -307,7 +373,7 @@ export default function Focus({ streaks: rawStreaks, setStreaks: setRawStreaks, 
                   </div>
                   <p style={{ fontSize: 11, color: 'var(--t2)', fontWeight: 500 }}>Focus today</p>
                 </div>
-                <p style={{ fontSize: 28, fontWeight: 700, fontFamily: 'JetBrains Mono, monospace', color: 'var(--accent)', letterSpacing: '-0.02em' }}>{elapsedDisplay}</p>
+                <p style={{ fontSize: 28, fontWeight: 700, fontFamily: 'JetBrains Mono, monospace', color: 'var(--accent)', letterSpacing: '-0.02em' }}>{focusDisplay}</p>
               </div>
               <div style={{ background: 'rgba(255,255,255,0.025)', border: '1px solid var(--b1)', borderRadius: 'var(--r-lg)', padding: '18px 20px' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 7, marginBottom: 14 }}>
@@ -322,8 +388,6 @@ export default function Focus({ streaks: rawStreaks, setStreaks: setRawStreaks, 
 
             {/* ── DAILY CHECK-IN PANEL ── */}
             <div style={{ background: 'rgba(255,255,255,0.025)', border: '1px solid var(--b1)', borderRadius: 'var(--r-xl)', overflow: 'hidden' }}>
-
-              {/* Header */}
               <div style={{ padding: '14px 18px 12px', borderBottom: '1px solid var(--b0)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                   <p className="label">Daily check-in</p>
@@ -339,91 +403,50 @@ export default function Focus({ streaks: rawStreaks, setStreaks: setRawStreaks, 
                     </span>
                   )}
                 </div>
-                <motion.button
-                  whileHover={{ scale: 1.08 }} whileTap={{ scale: 0.92 }}
+                <motion.button whileHover={{ scale: 1.08 }} whileTap={{ scale: 0.92 }}
                   onClick={() => setAdding(a => !a)}
                   style={{
-                    display: 'flex', alignItems: 'center', gap: 5,
-                    padding: '5px 10px', borderRadius: 7, fontSize: 11, fontWeight: 600,
+                    display: 'flex', alignItems: 'center', gap: 5, padding: '5px 10px', borderRadius: 7, fontSize: 11, fontWeight: 600,
                     background: adding ? 'var(--red-dim)' : 'var(--accent-dim)',
                     border: `1px solid ${adding ? 'rgba(224,92,92,0.25)' : 'var(--accent-b)'}`,
-                    color: adding ? 'var(--red)' : 'var(--accent)',
-                    transition: 'all .15s',
-                  }}
-                >
+                    color: adding ? 'var(--red)' : 'var(--accent)', transition: 'all .15s',
+                  }}>
                   {adding ? <><X size={11} /> Cancel</> : <><Plus size={11} /> Add</>}
                 </motion.button>
               </div>
 
-              {/* Add form */}
               <AnimatePresence>
                 {adding && (
-                  <motion.div
-                    initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }}
+                  <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }}
                     exit={{ height: 0, opacity: 0 }} transition={{ duration: 0.2, ease: 'easeInOut' }}
-                    style={{ overflow: 'hidden', borderBottom: '1px solid var(--b0)' }}
-                  >
+                    style={{ overflow: 'hidden', borderBottom: '1px solid var(--b0)' }}>
                     <div style={{ padding: '14px 16px', display: 'flex', flexDirection: 'column', gap: 12 }}>
-
-                      {/* Label input */}
-                      <input
-                        ref={inputRef}
-                        value={newLabel}
-                        onChange={e => setNewLabel(e.target.value)}
+                      <input ref={inputRef} value={newLabel} onChange={e => setNewLabel(e.target.value)}
                         onKeyDown={e => { if (e.key === 'Enter') addCheckin(); if (e.key === 'Escape') setAdding(false) }}
                         placeholder="e.g. Morning run, Read 30 mins…"
-                        style={{ width: '100%', padding: '9px 12px', fontSize: 13, borderRadius: 'var(--r)', background: 'var(--bg-0)', border: '1px solid var(--b1)' }}
-                      />
-
-                      {/* Emoji picker */}
+                        style={{ width: '100%', padding: '9px 12px', fontSize: 13, borderRadius: 'var(--r)', background: 'var(--bg-0)', border: '1px solid var(--b1)' }} />
                       <div>
                         <p style={{ fontSize: 10, color: 'var(--t2)', marginBottom: 7, letterSpacing: '0.06em', textTransform: 'uppercase', fontWeight: 600 }}>Icon</p>
                         <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
                           {EMOJI_OPTIONS.map(e => (
                             <button key={e} onClick={() => setNewEmoji(e)}
-                              style={{
-                                width: 32, height: 32, borderRadius: 8, fontSize: 16,
-                                background: newEmoji === e ? 'var(--accent-dim)' : 'var(--bg-3)',
-                                border: `1px solid ${newEmoji === e ? 'var(--accent-b)' : 'var(--b0)'}`,
-                                cursor: 'pointer', transition: 'all .12s',
-                              }}>
+                              style={{ width: 32, height: 32, borderRadius: 8, fontSize: 16, background: newEmoji === e ? 'var(--accent-dim)' : 'var(--bg-3)', border: `1px solid ${newEmoji === e ? 'var(--accent-b)' : 'var(--b0)'}`, cursor: 'pointer', transition: 'all .12s' }}>
                               {e}
                             </button>
                           ))}
                         </div>
                       </div>
-
-                      {/* Color picker */}
                       <div>
                         <p style={{ fontSize: 10, color: 'var(--t2)', marginBottom: 7, letterSpacing: '0.06em', textTransform: 'uppercase', fontWeight: 600 }}>Color</p>
                         <div style={{ display: 'flex', gap: 8 }}>
                           {COLOR_OPTIONS.map((c, i) => (
                             <button key={i} onClick={() => setNewColorIdx(i)}
-                              style={{
-                                width: 22, height: 22, borderRadius: '50%',
-                                background: c.color,
-                                border: newColorIdx === i ? `2px solid var(--t0)` : '2px solid transparent',
-                                boxShadow: newColorIdx === i ? `0 0 0 1px ${c.color}` : 'none',
-                                cursor: 'pointer', transition: 'all .12s',
-                              }}
-                            />
+                              style={{ width: 22, height: 22, borderRadius: '50%', background: c.color, border: newColorIdx === i ? '2px solid var(--t0)' : '2px solid transparent', boxShadow: newColorIdx === i ? `0 0 0 1px ${c.color}` : 'none', cursor: 'pointer', transition: 'all .12s' }} />
                           ))}
                         </div>
                       </div>
-
-                      {/* Confirm */}
-                      <motion.button
-                        whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.97 }}
-                        onClick={addCheckin}
-                        disabled={!newLabel.trim()}
-                        style={{
-                          padding: '9px 0', borderRadius: 'var(--r)', fontSize: 13, fontWeight: 600,
-                          background: newLabel.trim() ? 'var(--accent)' : 'var(--bg-3)',
-                          color: newLabel.trim() ? '#fff' : 'var(--t3)',
-                          boxShadow: newLabel.trim() ? '0 4px 14px rgba(91,106,248,0.3)' : 'none',
-                          transition: 'all .15s', cursor: newLabel.trim() ? 'pointer' : 'default',
-                        }}
-                      >
+                      <motion.button whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.97 }} onClick={addCheckin} disabled={!newLabel.trim()}
+                        style={{ padding: '9px 0', borderRadius: 'var(--r)', fontSize: 13, fontWeight: 600, background: newLabel.trim() ? 'var(--accent)' : 'var(--bg-3)', color: newLabel.trim() ? '#fff' : 'var(--t3)', boxShadow: newLabel.trim() ? '0 4px 14px rgba(91,106,248,0.3)' : 'none', transition: 'all .15s', cursor: newLabel.trim() ? 'pointer' : 'default' }}>
                         Add check-in
                       </motion.button>
                     </div>
@@ -431,80 +454,32 @@ export default function Focus({ streaks: rawStreaks, setStreaks: setRawStreaks, 
                 )}
               </AnimatePresence>
 
-              {/* Check-in list */}
               <div style={{ padding: checkins.length ? '6px 12px 10px' : '0' }}>
                 <AnimatePresence>
                   {checkins.map((c, i) => {
                     const col = COLOR_OPTIONS[c.colorIdx ?? 0]
                     return (
-                      <motion.div
-                        key={c.id}
-                        layout
-                        initial={{ opacity: 0, y: -6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, x: 20 }}
+                      <motion.div key={c.id} layout initial={{ opacity: 0, y: -6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, x: 20 }}
                         transition={{ type: 'spring', stiffness: 320, damping: 28 }}
-                        style={{
-                          display: 'flex', alignItems: 'center', gap: 12,
-                          padding: '11px 8px',
-                          borderBottom: i < checkins.length - 1 ? '1px solid var(--b0)' : 'none',
-                        }}
-                      >
-                        {/* Emoji icon */}
-                        <div style={{
-                          width: 34, height: 34, borderRadius: 9, flexShrink: 0, fontSize: 16,
-                          display: 'flex', alignItems: 'center', justifyContent: 'center',
-                          background: c.doneToday ? col.dim : 'var(--bg-3)',
-                          border: `1px solid ${c.doneToday ? col.color + '44' : 'var(--b0)'}`,
-                          transition: 'all .2s',
-                        }}>
+                        style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '11px 8px', borderBottom: i < checkins.length - 1 ? '1px solid var(--b0)' : 'none' }}>
+                        <div style={{ width: 34, height: 34, borderRadius: 9, flexShrink: 0, fontSize: 16, display: 'flex', alignItems: 'center', justifyContent: 'center', background: c.doneToday ? col.dim : 'var(--bg-3)', border: `1px solid ${c.doneToday ? col.color + '44' : 'var(--b0)'}`, transition: 'all .2s' }}>
                           {c.emoji}
                         </div>
-
-                        {/* Label */}
-                        <span style={{
-                          flex: 1, fontSize: 13.5, fontWeight: 500,
-                          color: c.doneToday ? 'var(--t2)' : 'var(--t0)',
-                          textDecoration: c.doneToday ? 'line-through' : 'none',
-                          transition: 'all .2s',
-                        }}>
+                        <span style={{ flex: 1, fontSize: 13.5, fontWeight: 500, color: c.doneToday ? 'var(--t2)' : 'var(--t0)', textDecoration: c.doneToday ? 'line-through' : 'none', transition: 'all .2s' }}>
                           {c.label}
                         </span>
-
-                        {/* Delete */}
-                        <motion.button
-                          whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.88 }}
-                          onClick={() => removeCheckin(c.id)}
-                          style={{
-                            width: 24, height: 24, borderRadius: 6, flexShrink: 0,
-                            display: 'flex', alignItems: 'center', justifyContent: 'center',
-                            color: 'var(--t3)', background: 'transparent', transition: 'all .12s',
-                          }}
+                        <motion.button whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.88 }} onClick={() => removeCheckin(c.id)}
+                          style={{ width: 24, height: 24, borderRadius: 6, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--t3)', background: 'transparent', transition: 'all .12s' }}
                           onMouseEnter={e => { e.currentTarget.style.color = 'var(--red)'; e.currentTarget.style.background = 'var(--red-dim)' }}
-                          onMouseLeave={e => { e.currentTarget.style.color = 'var(--t3)'; e.currentTarget.style.background = 'transparent' }}
-                        >
+                          onMouseLeave={e => { e.currentTarget.style.color = 'var(--t3)'; e.currentTarget.style.background = 'transparent' }}>
                           <Trash2 size={12} />
                         </motion.button>
-
-                        {/* Toggle */}
-                        <motion.button
-                          whileTap={{ scale: 0.78 }}
-                          onClick={() => toggleCheckin(c.id)}
-                          style={{
-                            width: 30, height: 30, borderRadius: 8, flexShrink: 0,
-                            display: 'flex', alignItems: 'center', justifyContent: 'center',
-                            background: c.doneToday ? col.dim : 'transparent',
-                            border: `1.5px solid ${c.doneToday ? col.color : 'var(--b2)'}`,
-                            cursor: 'pointer', transition: 'all .18s',
-                            boxShadow: c.doneToday ? `0 2px 10px ${col.color}44` : 'none',
-                          }}
-                        >
+                        <motion.button whileTap={{ scale: 0.78 }} onClick={() => toggleCheckin(c.id)}
+                          style={{ width: 30, height: 30, borderRadius: 8, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', background: c.doneToday ? col.dim : 'transparent', border: `1.5px solid ${c.doneToday ? col.color : 'var(--b2)'}`, cursor: 'pointer', transition: 'all .18s', boxShadow: c.doneToday ? `0 2px 10px ${col.color}44` : 'none' }}>
                           <AnimatePresence mode="wait">
                             {c.doneToday
-                              ? <motion.div key="y" initial={{ scale: 0 }} animate={{ scale: 1 }} exit={{ scale: 0 }} transition={{ type: 'spring', stiffness: 400, damping: 18 }}>
-                                <CheckCircle2 size={15} color={col.color} />
-                              </motion.div>
-                              : <motion.div key="n" initial={{ scale: 0 }} animate={{ scale: 1 }} exit={{ scale: 0 }}>
-                                <Circle size={15} color="var(--b2)" />
-                              </motion.div>
+                              ? <motion.div key="y" initial={{ scale: 0 }} animate={{ scale: 1 }} exit={{ scale: 0 }} transition={{ type: 'spring', stiffness: 400, damping: 18 }}><CheckCircle2 size={15} color={col.color} /></motion.div>
+                              : <motion.div key="n" initial={{ scale: 0 }} animate={{ scale: 1 }} exit={{ scale: 0 }}><Circle size={15} color="var(--b2)" /></motion.div>
                             }
                           </AnimatePresence>
                         </motion.button>
@@ -512,8 +487,6 @@ export default function Focus({ streaks: rawStreaks, setStreaks: setRawStreaks, 
                     )
                   })}
                 </AnimatePresence>
-
-                {/* Empty state */}
                 {checkins.length === 0 && !adding && (
                   <motion.p initial={{ opacity: 0 }} animate={{ opacity: 1 }}
                     style={{ textAlign: 'center', padding: '24px 0', fontSize: 12, color: 'var(--t3)' }}>
@@ -523,7 +496,7 @@ export default function Focus({ streaks: rawStreaks, setStreaks: setRawStreaks, 
               </div>
             </div>
 
-            {/* Motivational mini-card */}
+            {/* Motivational card */}
             <div style={{ padding: '14px 18px', borderRadius: 'var(--r-lg)', background: 'var(--accent-dim)', border: '1px solid var(--accent-b)', display: 'flex', alignItems: 'center', gap: 10 }}>
               <span style={{ fontSize: 16 }}>🎯</span>
               <p style={{ fontSize: 12, color: 'var(--t1)', lineHeight: 1.6 }}>
