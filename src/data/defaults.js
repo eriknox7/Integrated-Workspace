@@ -23,7 +23,7 @@ export const DEFAULT_APPS = [
   { id: 15, name: 'Twitter / X', url: 'https://x.com', icon: 'https://abs.twimg.com/favicons/twitter.3.ico', cat: 'Social', fav: false },
   { id: 16, name: 'LinkedIn', url: 'https://linkedin.com', icon: 'https://static.licdn.com/sc/h/al2o9zrvru7aqj8e1x2rzsrca', cat: 'Social', fav: false, home: true, homeOrder: 4 },
   // Media
-  { id: 17, name: 'YouTube', url: 'https://youtube.com', icon: 'https://img.icons8.com/?size=96&id=19318&format=png', cat: 'Media', fav: false, home: true, homeOrder: 6 },
+  { id: 17, name: 'YouTube', url: 'https://www.youtube.com/', icon: 'https://cdn-icons-png.flaticon.com/128/5968/5968852.png', cat: 'Media', fav: false, home: true, homeOrder: 6 },
   { id: 18, name: 'Spotify', url: 'https://open.spotify.com', icon: 'https://open.spotifycdn.com/cdn/images/favicon32.b64ecc03.png', cat: 'Media', fav: false, home: true, homeOrder: 7 },
   // Design
   { id: 19, name: 'Excalidraw', url: 'https://excalidraw.com', icon: 'https://excalidraw.com/favicon.ico', cat: 'Design', fav: false },

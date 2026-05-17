@@ -156,6 +156,7 @@ export default function Dashboard({ apps, setApps, focusMode, onOpenSearch }) {
 
       {/* ── Hover zone: quick links emerge on hover between search and apps ── */}
       <QuickLinksZone
+        focusMode={focusMode}
         pins={pins}
         addingPin={addingPin}
         setAddingPin={setAddingPin}
@@ -212,14 +213,16 @@ export default function Dashboard({ apps, setApps, focusMode, onOpenSearch }) {
                 >
                   {homeApps.map(app => (
                     <SortableTile
-                      key={app.id} app={app}
+                      key={app.id}
+                      app={app}
+                      focusMode={focusMode}
                       onRemove={() => removeFromHome(app.id)}
                     />
                   ))}
 
                   {/* Add tile — always visible */}
                   <AnimatePresence>
-                    {showAddTile && (
+                    {showAddTile && !focusMode && (
                       <motion.button
                         initial={{ opacity: 0, scale: .85 }}
                         animate={{ opacity: 1, scale: 1 }}
@@ -277,7 +280,7 @@ export default function Dashboard({ apps, setApps, focusMode, onOpenSearch }) {
 }
 
 /* ── Sortable tile ─────────────────────────────────────── */
-function SortableTile({ app, onRemove }) {
+function SortableTile({ app, onRemove, focusMode }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: app.id })
   const [hov, setHov] = useState(false)
 
@@ -290,7 +293,8 @@ function SortableTile({ app, onRemove }) {
 
   return (
     <div ref={setNodeRef} style={{ ...style, position: 'relative', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 7, width: 80 }}
-      onMouseEnter={() => setHov(true)} onMouseLeave={() => setHov(false)}>
+      onMouseEnter={() => !focusMode && setHov(true)}
+      onMouseLeave={() => setHov(false)}>
 
       {/* Remove button — show in edit mode or hover */}
       <AnimatePresence>
@@ -312,7 +316,10 @@ function SortableTile({ app, onRemove }) {
         href={app.url}
         target="_blank"
         rel="noreferrer"
-        animate={{ y: hov ? -3 : 0, scale: isDragging ? 1.05 : 1 }}
+        animate={{
+          y: !focusMode && hov ? -3 : 0,
+          scale: !focusMode && isDragging ? 1.05 : 1
+        }}
         transition={{ type: 'spring', stiffness: 400, damping: 28 }}
         style={{
           width: 52, height: 52, borderRadius: 16, cursor: isDragging ? 'grabbing' : 'grab',
@@ -445,7 +452,8 @@ function AppPicker({ apps, focusMode, onToggle, onClose }) {
 }
 
 /* ── Quick links zone ─────────────────────────────────── */
-function QuickLinksZone({ pins, addingPin, setAddingPin, pinInput, setPinInput, pinRef, commitPin, removePin }) {
+function QuickLinksZone({
+  focusMode, pins, addingPin, setAddingPin, pinInput, setPinInput, pinRef, commitPin, removePin }) {
   const [visible, setVisible] = useState(false)
   const leaveTimer = useRef(null)
 
@@ -478,7 +486,10 @@ function QuickLinksZone({ pins, addingPin, setAddingPin, pinInput, setPinInput, 
   }, [addingPin, setAddingPin, setPinInput])
 
   const canAddMorePins = pins.length < 3
-  const show = (canAddMorePins && visible) || addingPin || pins.length > 0
+  const show =
+    (!focusMode && canAddMorePins && visible) ||
+    addingPin ||
+    pins.length > 0
 
   return (
     <div
