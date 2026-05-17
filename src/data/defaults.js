@@ -1,3 +1,5 @@
+import faahpdf from '../assets/Faah.pdf'
+
 export const DEFAULT_APPS = [
   // DSA
   { id: 1, name: 'LeetCode', url: 'https://leetcode.com', icon: 'https://leetcode.com/favicon.ico', cat: 'Learn', fav: false, home: true, homeOrder: 1 },
@@ -95,11 +97,9 @@ export const SHORTCUTS = {
   gml: { label: 'Gmail', url: 'https://mail.google.com/mail/u/0/?view=cm&fs=1&tf=1&to=' },
   sptst: { label: 'Speedtest', url: 'https://www.speedtest.net/run' },
   drv: {
-    label: 'Drive',
-    url: 'https://drive.google.com/drive/search?q=',
-    fallback: 'https://drive.google.com/drive/home'
-  },
+  label: 'Drive', url: 'https://drive.google.com/drive/search?q=', fallback: 'https://drive.google.com/drive/home'},
   sch: { label: 'Scholar', url: 'https://scholar.google.com/scholar?q=' },
+  faah: {label: 'Faah', url: faahpdf},
 }
 
 export const ACCENTS = [
