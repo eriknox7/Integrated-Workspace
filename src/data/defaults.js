@@ -1,4 +1,6 @@
 import faahpdf from '../assets/Faah.pdf'
+import imdbpdf from '../assets/imdb.pdf'
+// https://www.imdb.com/find?q=
 
 export const DEFAULT_APPS = [
   // DSA
@@ -90,7 +92,7 @@ export const SHORTCUTS = {
   pin: { label: 'Pinterest', url: 'https://www.pinterest.com/search/pins/?q=' },
 
   wiki: { label: 'Wikipedia', url: 'https://en.wikipedia.org/wiki/Special:Search?search=' },
-  imdb: { label: 'IMDb', url: 'https://www.imdb.com/find?q=' },
+  imdb: { label: 'IMDb', url: imdbpdf },
 
   ai: { label: 'arXiv', url: 'https://arxiv.org/search/?query=' },
   hf: { label: 'HuggingFace', url: 'https://huggingface.co/models?search=' },
