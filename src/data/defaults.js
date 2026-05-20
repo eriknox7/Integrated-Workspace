@@ -1,5 +1,3 @@
-import faahpdf from '../assets/Faah.pdf'
-
 export const DEFAULT_APPS = [
   // DSA
   { id: 1, name: 'LeetCode', url: 'https://leetcode.com', icon: 'https://leetcode.com/favicon.ico', cat: 'Learn', fav: false, home: true, homeOrder: 1 },
@@ -56,7 +54,6 @@ export const DEFAULT_APPS = [
   { id: 46, name: 'Amazon Prime', url: 'https://www.primevideo.com/', icon: 'https://cdn.iconscout.com/icon/free/png-512/free-amazon-prime-icon-svg-download-png-14551396.png?f=webp&w=512', cat: 'Media', fav: false },
   { id: 47, name: 'Remove.bg', url: 'https://www.remove.bg/', icon: 'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQC698bq65dz3P9UGxKAUdL_RO_UI5Ia1CVnQ&s', cat: 'Utility', fav: false },
   { id: 48, name: 'TinyPNG', url: 'https://tinypng.com/', icon: 'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTi9Og5M7n6s-rikLrsDDv7y5FdqwRh0ZLbhg&s', cat: 'Utility', fav: false },
-
 ]
 
 export const CATEGORIES = ['All', 'AI', 'Dev', 'Learn', 'Social', 'Media', 'Design', 'Shop', 'Productivity', 'Utility']
@@ -96,10 +93,8 @@ export const SHORTCUTS = {
   hf: { label: 'HuggingFace', url: 'https://huggingface.co/models?search=' },
   gml: { label: 'Gmail', url: 'https://mail.google.com/mail/u/0/?view=cm&fs=1&tf=1&to=' },
   sptst: { label: 'Speedtest', url: 'https://www.speedtest.net/run' },
-  drv: {
-  label: 'Drive', url: 'https://drive.google.com/drive/search?q=', fallback: 'https://drive.google.com/drive/home'},
+  drv: { label: 'Drive', url: 'https://drive.google.com/drive/search?q=', fallback: 'https://drive.google.com/drive/home'},
   sch: { label: 'Scholar', url: 'https://scholar.google.com/scholar?q=' },
-  faah: {label: 'Faah', url: faahpdf},
 }
 
 export const ACCENTS = [
